@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Dynamic Blur Mask</title>
+
+	<!-- this code is based on 2 official examples
+		examples/Cache.html
+		examples/Masks.html
+	-->
+
+	<!-- <script src="../lib/easeljs-NEXT.combined.js"></script> -->
+	<script src="https://code.createjs.com/easeljs-0.8.0.min.js"></script>
+
+	<script id="editable">
+	var canvas;
+	var star, stage;
+	var scale;
+	var angle = 0;
+
+	// from Cache.html----
+	var shape;
+	var radius = 80;
+	var rings = 40;
+	var ringsContainer;
+	var blurred;
+	// ------------------
+	
+	function init() {
+
+		//find canvas and load images, wait for last image to load
+		canvas = document.getElementById("testCanvas");
+
+		// create a new stage and point it at our canvas:
+		stage = new createjs.Stage(canvas);
+
+		// masks can only be shapes.
+		star = new createjs.Shape();
+		// the mask's position will be relative to the parent of its target:
+		star.x = canvas.width / 2;
+		star.y = canvas.height / 2;
+		// only the drawPolyStar call is needed for the mask to work:
+		star.graphics.beginFill('rgba(200, 200, 200, 0.3)').drawPolyStar(0, 0, canvas.height / 2 - 15, 5, 0.6).closePath();
+
+		// from Cache.html ----------------------
+		var colors = ["#828b20", "#b0ac31", "#cbc53d", "#fad779", "#f9e4ad", "#faf2db", "#563512", "#9b4a0b", "#d36600", "#fe8a00", "#f9a71f"];
+
+		ringsContainer = new createjs.Container();
+		stage.addChild(ringsContainer);
+
+		for (var i = 0; i < 20; i++) {
+			shape = new createjs.Shape();
+			for (var j = rings; j > 0; j--) {
+				shape.graphics.beginFill(colors[Math.random() * colors.length | 0]).drawCircle(0, 0, radius * j / rings);
+			}
+			shape.x = Math.random() * canvas.width;
+			shape.y = Math.random() * canvas.height;
+			shape.velX = Math.random() * 10 - 5;
+			shape.velY = Math.random() * 10 - 5;
+
+			// turn snapToPixel on for all shapes - it's set to false by default on Shape.
+			// it won't do anything until stage.snapToPixelEnabled is set to true.
+			shape.snapToPixel = true;
+			shape.cache(-radius, -radius, radius * 2, radius * 2);
+
+			ringsContainer.addChild(shape);
+		}
+		ringsContainer.cache(0, 0, canvas.width, canvas.height);
+
+
+		blurred = new createjs.Bitmap(ringsContainer.cacheCanvas);
+		blurred.filters = [new createjs.BlurFilter(20, 20, 2), new createjs.ColorMatrixFilter(new createjs.ColorMatrix(60))];
+		blurred.cache(0, 0, canvas.width, canvas.height);
+		blurred.mask = star;
+		stage.addChild(blurred);
+
+		// note that the shape can be used in the display list as well if you'd like, or
+		// we can reuse the Graphics instance in another shape if we'd like to transform it differently.
+		stage.addChild(star);
+
+		createjs.Ticker.addEventListener("tick", tick);
+	}
+
+	function tick(event) {
+		var w = canvas.width + radius * 2;
+		var h = canvas.height + radius * 2;
+		var l = ringsContainer.getNumChildren() - 1;
+
+		// iterate through all the children and move them according to their velocity:
+		for (var i = 1; i < l; i++) {
+			var shape = ringsContainer.getChildAt(i);
+			shape.x = (shape.x + radius + shape.velX + w) % w - radius;
+			shape.y = (shape.y + radius + shape.velY + h) % h - radius;
+		}
+		ringsContainer.updateCache();
+
+		// マスク部内画像の更新
+		blurred.image = ringsContainer.cacheCanvas;
+		blurred.updateCache();
+
+		star.rotation += 2;
+		star.scaleX = star.scaleY = 2 + Math.sin(angle) * 1;
+		stage.update(event);
+		angle += 0.025;
+	}
+	</script>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+		}
+	</style>
+</head>
+
+<body onload="init();">
+	<canvas id="testCanvas" width="660" height="330" style="background:#000"></canvas>
+</body>
+</html>
